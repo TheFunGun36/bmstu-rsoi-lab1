@@ -1,16 +1,19 @@
 use axum::{extract::Path, http::StatusCode, response::IntoResponse, Json};
+use diesel::prelude::*;
 
-use crate::model::{Person, PersonWithId};
+use crate::{
+    data_access::establish_connection,
+    model::{PersonPatchRequest, PersonRequest, PersonResponse},
+    schema::person,
+};
 
-fn sample_person() -> PersonWithId {
-    PersonWithId {
+fn sample_person() -> PersonResponse {
+    PersonResponse {
         id: 13,
-        inner: Person {
-            name: "Jora".to_owned(),
-            age: 25,
-            address: "st. Pushkina, h. Colotushkina".to_owned(),
-            work: "PoelPospal Inc.".to_owned(),
-        },
+        name: "Jora".to_owned(),
+        age: 25,
+        address: "st. Pushkina, h. Colotushkina".to_owned(),
+        work: "PoelPospal Inc.".to_owned(),
     }
 }
 
@@ -58,11 +61,19 @@ pub async fn get_persons() -> impl IntoResponse {
     post,
     path = "/api/v1/persons",
     responses(
-        (status = OK, description = "Success")
+        (status = 201, description = "Success")
     )
 )]
-pub async fn post_person(Json(_person): Json<Person>) -> impl IntoResponse {
-    StatusCode::OK
+pub async fn post_person(Json(person): Json<PersonRequest>) -> impl IntoResponse {
+    let conn = &mut establish_connection();
+    let res = diesel::insert_into(person::table)
+        .values(&person)
+        .execute(conn);
+
+    match res {
+        Ok(_) => StatusCode::CREATED,
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
+    }
 }
 
 #[utoipa::path(
@@ -72,8 +83,20 @@ pub async fn post_person(Json(_person): Json<Person>) -> impl IntoResponse {
         (status = OK, description = "Success")
     )
 )]
-pub async fn patch_person(Path(_person_id): Path<i32>, Json(_person): Json<Person>) -> impl IntoResponse {
-    StatusCode::OK
+pub async fn patch_person(
+    Path(person_id): Path<i32>,
+    Json(person): Json<PersonPatchRequest>,
+) -> impl IntoResponse {
+    let conn = &mut establish_connection();
+    let res = diesel::update(person::table)
+        .filter(person::id.eq(person_id))
+        .set(person)
+        .execute(conn);
+
+    match res {
+        Ok(_) => StatusCode::OK,
+        Err(_) => StatusCode::NOT_FOUND,
+    }
 }
 
 #[utoipa::path(
@@ -83,6 +106,16 @@ pub async fn patch_person(Path(_person_id): Path<i32>, Json(_person): Json<Perso
         (status = OK, description = "Success")
     )
 )]
-pub async fn delete_person(Path(_person_id): Path<i32>) -> impl IntoResponse {
-    StatusCode::OK
+pub async fn delete_person(Path(person_id): Path<i32>) -> impl IntoResponse {
+    let conn = &mut establish_connection();
+
+    let res = diesel::delete(person::table)
+        .filter(person::id.eq(person_id))
+        .execute(conn);
+
+    match res {
+        Ok(_) => StatusCode::OK,
+        Err(_) => StatusCode::NOT_FOUND,
+    }
 }
+

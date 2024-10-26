@@ -1,30 +1,33 @@
-use std::ops::Deref;
-
+use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 
-#[derive(Serialize, Deserialize, ToSchema)]
-pub struct Person {
+#[derive(Serialize, Deserialize, ToSchema, Insertable)]
+#[diesel(table_name = crate::schema::person)]
+pub struct PersonRequest {
     pub name: String,
-    pub age: u32,
+    pub age: i32,
     pub address: String,
     pub work: String,
 }
 
-#[derive(Serialize, Deserialize, ToSchema)]
-#[aliases(PersonWithId = WithId<Person>)]
-pub struct WithId<T> {
-    pub id: i32,
-
-    #[serde(flatten)]
-    pub inner: T,
+#[derive(Serialize, Deserialize, ToSchema, AsChangeset)]
+#[diesel(table_name = crate::schema::person)]
+pub struct PersonPatchRequest {
+    pub name: Option<String>,
+    pub age: Option<i32>,
+    pub address: Option<String>,
+    pub work: Option<String>,
 }
 
-impl<T> Deref for WithId<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
+#[derive(Serialize, Deserialize, ToSchema, Queryable, Selectable)]
+#[diesel(table_name = crate::schema::person)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct PersonResponse {
+    pub id: i32,
+    pub name: String,
+    pub age: i32,
+    pub address: String,
+    pub work: String,
 }

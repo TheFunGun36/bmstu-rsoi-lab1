@@ -4,6 +4,8 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Build project
         run: cargo build --release
       - name: Upload binary artifact
@@ -14,5 +16,7 @@ jobs:
   test:
     runs-on: ubuntu-24.04
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Run all tests
         run: cargo test --all

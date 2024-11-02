@@ -1,5 +1,5 @@
 use axum::{
-    extract::Path,
+    extract::{Path, State},
     http::{header, HeaderMap, StatusCode, Uri},
     response::IntoResponse,
     Json,
@@ -10,6 +10,7 @@ use crate::{
     data_access::establish_connection,
     model::{PersonPatchRequest, PersonRequest, PersonResponse},
     schema::person,
+    AppState,
 };
 
 #[utoipa::path(
@@ -31,8 +32,11 @@ pub async fn check_health() -> impl IntoResponse {
         (status = NOT_FOUND, description = "Person with requested id does not exist")
     )
 )]
-pub async fn get_person(Path(person_id): Path<i32>) -> impl IntoResponse {
-    let conn = &mut establish_connection();
+pub async fn get_person(
+    State(state): State<AppState>,
+    Path(person_id): Path<i32>,
+) -> impl IntoResponse {
+    let conn = &mut establish_connection(state.database_url.as_str());
     let res = person::table
         .find(person_id)
         .select(PersonResponse::as_select())
@@ -52,8 +56,8 @@ pub async fn get_person(Path(person_id): Path<i32>) -> impl IntoResponse {
         (status = OK, description = "Success", body = Vec<PersonResponse>, content_type = "application/json")
     )
 )]
-pub async fn get_persons() -> impl IntoResponse {
-    let conn = &mut establish_connection();
+pub async fn get_persons(State(state): State<AppState>) -> impl IntoResponse {
+    let conn = &mut establish_connection(state.database_url.as_str());
     let res = person::table.select(PersonResponse::as_select()).load(conn);
 
     match res {
@@ -69,8 +73,12 @@ pub async fn get_persons() -> impl IntoResponse {
         (status = 201, description = "Success")
     )
 )]
-pub async fn post_person(uri: Uri, Json(person): Json<PersonRequest>) -> impl IntoResponse {
-    let conn = &mut establish_connection();
+pub async fn post_person(
+    State(state): State<AppState>,
+    uri: Uri,
+    Json(person): Json<PersonRequest>,
+) -> impl IntoResponse {
+    let conn = &mut establish_connection(state.database_url.as_str());
     let res = diesel::insert_into(person::table)
         .values(&person)
         .returning(PersonResponse::as_returning())
@@ -95,10 +103,11 @@ pub async fn post_person(uri: Uri, Json(person): Json<PersonRequest>) -> impl In
     )
 )]
 pub async fn patch_person(
+    State(state): State<AppState>,
     Path(person_id): Path<i32>,
     Json(person): Json<PersonPatchRequest>,
 ) -> impl IntoResponse {
-    let conn = &mut establish_connection();
+    let conn = &mut establish_connection(state.database_url.as_str());
     let res = diesel::update(person::table)
         .filter(person::id.eq(person_id))
         .set(person)
@@ -117,8 +126,8 @@ pub async fn patch_person(
         (status = OK, description = "Success")
     )
 )]
-pub async fn delete_person(Path(person_id): Path<i32>) -> impl IntoResponse {
-    let conn = &mut establish_connection();
+pub async fn delete_person(Path(person_id): Path<i32>, State(state): State<AppState>) -> impl IntoResponse {
+    let conn = &mut establish_connection(state.database_url.as_str());
 
     let res = diesel::delete(person::table)
         .filter(person::id.eq(person_id))

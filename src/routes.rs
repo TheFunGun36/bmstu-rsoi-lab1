@@ -111,11 +111,12 @@ pub async fn patch_person(
     let res = diesel::update(person::table)
         .filter(person::id.eq(person_id))
         .set(person)
-        .execute(conn);
+        .returning(PersonResponse::as_returning())
+        .get_result(conn);
 
     match res {
-        Ok(_) => StatusCode::OK,
-        Err(_) => StatusCode::NOT_FOUND,
+        Ok(updated_person) => (StatusCode::OK, Json(updated_person)).into_response(),
+        Err(_) => StatusCode::NOT_FOUND.into_response(),
     }
 }
 
@@ -123,7 +124,7 @@ pub async fn patch_person(
     delete,
     path = "/api/v1/persons/{personId}",
     responses(
-        (status = OK, description = "Success")
+        (status = NO_CONTENT, description = "Success")
     )
 )]
 pub async fn delete_person(Path(person_id): Path<i32>, State(state): State<AppState>) -> impl IntoResponse {
@@ -134,7 +135,7 @@ pub async fn delete_person(Path(person_id): Path<i32>, State(state): State<AppSt
         .execute(conn);
 
     match res {
-        Ok(_) => StatusCode::OK,
+        Ok(_) => StatusCode::NO_CONTENT,
         Err(_) => StatusCode::NOT_FOUND,
     }
 }

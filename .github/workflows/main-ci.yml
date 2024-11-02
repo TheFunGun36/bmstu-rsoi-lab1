@@ -23,7 +23,7 @@ jobs:
       #  with:
       #    name: target-binary
       - name: build container
-        run: docker build
+        run: docker buildx build .
   test:
     runs-on: ubuntu-24.04
     steps:

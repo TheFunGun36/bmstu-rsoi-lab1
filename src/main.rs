@@ -1,3 +1,4 @@
+use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use model::{PersonPatchRequest, PersonRequest, PersonResponse};
 use tokio::net::TcpListener;
 use utoipa::OpenApi;
@@ -24,12 +25,16 @@ mod logger;
 )]
 struct ApiDoc;
 
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
+
 #[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn main() {
     std::env::var("DATABASE_URL").expect("DATABASE_URL environment variable was not specified");
 
     let _logger_handler = logger::init();
     log::debug!("Logger initialized. Hello, world!");
+
+    init_db();
 
     let swagger = SwaggerUi::new("/swagger-ui").url("/openapi.json", ApiDoc::openapi());
     let app = OpenApiRouter::<()>::with_openapi(ApiDoc::openapi())
@@ -47,4 +52,12 @@ async fn main() {
     axum::serve(listener, app.into_make_service())
         .await
         .unwrap();
+}
+
+fn init_db() {
+    let mut conn = data_access::establish_connection();
+    let result = conn.run_pending_migrations(MIGRATIONS);
+    if let Err(e) = result {
+        panic!("Failed to initialize DB: {e}");
+    }
 }

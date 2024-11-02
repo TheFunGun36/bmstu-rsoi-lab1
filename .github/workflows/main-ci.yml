@@ -13,6 +13,17 @@ jobs:
         with:
           name: target-binary
           path: target/release/bmstu-rsoi-lab1
+  build-docker:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: target-binary
+      - name: build container
+        build: docker build
   test:
     runs-on: ubuntu-24.04
     steps:

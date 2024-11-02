@@ -1,4 +1,9 @@
-use axum::{extract::Path, http::StatusCode, response::IntoResponse, Json};
+use axum::{
+    extract::Path,
+    http::{header, HeaderMap, StatusCode, Uri},
+    response::IntoResponse,
+    Json,
+};
 use diesel::prelude::*;
 
 use crate::{
@@ -6,16 +11,6 @@ use crate::{
     model::{PersonPatchRequest, PersonRequest, PersonResponse},
     schema::person,
 };
-
-fn sample_person() -> PersonResponse {
-    PersonResponse {
-        id: 13,
-        name: "Jora".to_owned(),
-        age: 25,
-        address: "st. Pushkina, h. Colotushkina".to_owned(),
-        work: "PoelPospal Inc.".to_owned(),
-    }
-}
 
 #[utoipa::path(
     get,
@@ -32,16 +27,21 @@ pub async fn check_health() -> impl IntoResponse {
     get,
     path = "/api/v1/persons/{personId}",
     responses(
-        (status = OK, description = "Success", body = PersonWithId, content_type = "application/json"),
+        (status = OK, description = "Success", body = PersonResponse, content_type = "application/json"),
         (status = NOT_FOUND, description = "Person with requested id does not exist")
     )
 )]
 pub async fn get_person(Path(person_id): Path<i32>) -> impl IntoResponse {
-    let result = sample_person();
-    if person_id == result.id {
-        Json::from(result).into_response()
-    } else {
-        StatusCode::NOT_FOUND.into_response()
+    let conn = &mut establish_connection();
+    let res = person::table
+        .find(person_id)
+        .select(PersonResponse::as_select())
+        .first(conn);
+
+    match res {
+        Ok(value) => (StatusCode::OK, Json(value)).into_response(),
+        Err(diesel::result::Error::NotFound) => (StatusCode::NOT_FOUND).into_response(),
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     }
 }
 
@@ -49,12 +49,17 @@ pub async fn get_person(Path(person_id): Path<i32>) -> impl IntoResponse {
     get,
     path = "/api/v1/persons",
     responses(
-        (status = OK, description = "Success", body = Vec<PersonWithId>, content_type = "application/json")
+        (status = OK, description = "Success", body = Vec<PersonResponse>, content_type = "application/json")
     )
 )]
 pub async fn get_persons() -> impl IntoResponse {
-    let result = vec![sample_person()];
-    Json::from(result)
+    let conn = &mut establish_connection();
+    let res = person::table.select(PersonResponse::as_select()).load(conn);
+
+    match res {
+        Ok(values) => (StatusCode::OK, Json(values)).into_response(),
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    }
 }
 
 #[utoipa::path(
@@ -64,15 +69,21 @@ pub async fn get_persons() -> impl IntoResponse {
         (status = 201, description = "Success")
     )
 )]
-pub async fn post_person(Json(person): Json<PersonRequest>) -> impl IntoResponse {
+pub async fn post_person(uri: Uri, Json(person): Json<PersonRequest>) -> impl IntoResponse {
     let conn = &mut establish_connection();
     let res = diesel::insert_into(person::table)
         .values(&person)
-        .execute(conn);
+        .returning(PersonResponse::as_returning())
+        .get_result(conn);
 
+    let mut headers = HeaderMap::new();
     match res {
-        Ok(_) => StatusCode::CREATED,
-        Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        Ok(created_person) => {
+            let path = format!("{}/{}", uri.path(), created_person.id);
+            headers.insert(header::LOCATION, path.parse().unwrap());
+            (StatusCode::CREATED, headers)
+        }
+        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, headers),
     }
 }
 
@@ -118,4 +129,3 @@ pub async fn delete_person(Path(person_id): Path<i32>) -> impl IntoResponse {
         Err(_) => StatusCode::NOT_FOUND,
     }
 }
-

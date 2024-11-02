@@ -8,6 +8,7 @@ mod data_access;
 mod model;
 mod routes;
 mod schema;
+mod logger;
 
 #[derive(utoipa::OpenApi)]
 #[openapi(
@@ -26,6 +27,9 @@ struct ApiDoc;
 #[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn main() {
     std::env::var("DATABASE_URL").expect("DATABASE_URL environment variable was not specified");
+
+    let _logger_handler = logger::init();
+    log::debug!("Logger initialized. Hello, world!");
 
     let swagger = SwaggerUi::new("/swagger-ui").url("/openapi.json", ApiDoc::openapi());
     let app = OpenApiRouter::<()>::with_openapi(ApiDoc::openapi())

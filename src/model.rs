@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -30,4 +32,15 @@ pub struct PersonResponse {
     pub age: i32,
     pub address: String,
     pub work: String,
+}
+
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct ErrorResponse {
+    pub message: String,
+}
+
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct ErrorsResponse {
+    pub message: String,
+    pub errors: BTreeMap<String, String>
 }

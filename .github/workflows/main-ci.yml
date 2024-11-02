@@ -8,22 +8,22 @@ jobs:
         uses: actions/checkout@v4
       - name: Build project
         run: cargo build --release
-      - name: Upload binary artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: target-binary
-          path: target/release/bmstu-rsoi-lab1
+      #- name: Upload binary artifact
+      #  uses: actions/upload-artifact@v4
+      #  with:
+      #    name: target-binary
+      #    path: target/release/bmstu-rsoi-lab1
   build-docker:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: target-binary
+      #- name: Download artifacts
+      #  uses: actions/download-artifact@v4
+      #  with:
+      #    name: target-binary
       - name: build container
-        build: docker build
+        run: docker build
   test:
     runs-on: ubuntu-24.04
     steps:

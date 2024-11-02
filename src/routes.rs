@@ -71,7 +71,7 @@ pub async fn get_persons(State(state): State<AppState>) -> impl IntoResponse {
     path = "/api/v1/persons",
     responses(
         (status = 201, description = "Success")
-    )
+    ),
 )]
 pub async fn post_person(
     State(state): State<AppState>,

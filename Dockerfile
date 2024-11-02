@@ -1,11 +1,15 @@
 FROM rust:latest AS build
 
-WORKDIR /usr/src/app
+RUN mkdir /src
+WORKDIR /src
 COPY . .
 
 RUN cargo build --release
+RUN rm .gitignore
 
-FROM alpine:3.20.3
-COPY --from=build /usr/src/app/target/release/bmstu-rsoi-lab1 /
-CMD ["/bmstu-rsoi-lab1"]
+FROM debian:bookworm-slim
+EXPOSE 3000
+COPY --from=build /src/target/release/bmstu-rsoi-lab1 /bmstu-rsoi-lab1
+RUN apt install -y libpq-dev
+ENTRYPOINT ["/bin/sh", "-c", "./bmstu-rsoi-lab1"]
 
